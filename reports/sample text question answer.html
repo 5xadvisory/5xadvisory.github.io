@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Secure Report Viewer</title>
+    <!-- Include CryptoJS via CDN -->
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js'></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f7f9fc; margin: 0; }
+        .container { background: white; padding: 30px 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); text-align: center; max-width: 400px; width: 90%; }
+        h2 { margin-top: 0; color: #333; }
+        p { color: #666; margin-bottom: 20px; }
+        input { padding: 12px; font-size: 18px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 6px; width: 100%; box-sizing: border-box; text-align: center; letter-spacing: 4px; }
+        input:focus { outline: none; border-color: #0066cc; }
+        button { padding: 12px 20px; font-size: 16px; background-color: #0066cc; color: white; border: none; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; transition: background-color 0.2s; }
+        button:hover { background-color: #0052a3; }
+        .error { color: #dc3545; margin-top: 15px; display: none; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <h2>Secure Report</h2>
+        <p>Please enter your 4-digit PIN to decrypt and view this report.</p>
+        <input type='password' id='pinInput' maxlength='4' placeholder='••••' autocomplete='off'>
+        <button onclick='decryptReport()'>View Report</button>
+        <p id='errorMsg' class='error'></p>
+    </div>
+
+    <script>
+        const encryptedData = 'yW4JLfVsHT62hM+1Gqosp6ftll3gwo8lXQ0lBWNGu2xACELoFdm/1uMHj7SAvaroM9d4BbUEjLzFQlUm0+6rTqKSh4kzt7MPLkPWh8gALtKz+2emvyGUcl7IzpplRq1Un6IMefg0ICYl4Dxfqw3phA==';
+        const saltData = '4SeYMFnh9C4hccQlkg5PHg==';
+        const ivData = 'LJyxi5ZLdHQqxZLQDUthRg==';
+
+        function decryptReport() {
+            const pin = document.getElementById('pinInput').value;
+            if (pin.length !== 4) {
+                showError('PIN must be exactly 4 digits.');
+                return;
+            }
+
+            try {
+                const salt = CryptoJS.enc.Base64.parse(saltData);
+                const iv = CryptoJS.enc.Base64.parse(ivData);
+                const key = CryptoJS.PBKDF2(pin, salt, { keySize: 256/32, iterations: 1000, hasher: CryptoJS.algo.SHA256 });
+                const ciphertext = CryptoJS.enc.Base64.parse(encryptedData);
+                const cipherParams = CryptoJS.lib.CipherParams.create({ ciphertext: ciphertext });
+                const decrypted = CryptoJS.AES.decrypt(cipherParams, key, { iv: iv });
+                const decryptedHtml = decrypted.toString(CryptoJS.enc.Utf8);
+
+                if (!decryptedHtml) throw new Error('Empty decryption');
+
+                document.open();
+                document.write(decryptedHtml);
+                document.close();
+            } catch (e) {
+                console.error(e);
+                showError('Incorrect PIN or corrupted data.');
+            }
+        }
+
+        function showError(msg) {
+            const errorEl = document.getElementById('errorMsg');
+            errorEl.innerText = msg;
+            errorEl.style.display = 'block';
+        }
+
+        document.getElementById('pinInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') decryptReport();
+        });
+    </script>
+</body>
+</html>
